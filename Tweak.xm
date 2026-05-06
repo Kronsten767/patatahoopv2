@@ -2,28 +2,21 @@
 #import <objc/runtime.h>
 #include <substrate.h>
 
-// ---------------------------------------------------------
-// 1. VECTORES DE RETORNO (Obj-C y Swift)
-// ---------------------------------------------------------
+// --- VECTORES DE RETORNO ESTÁTICO (Obj-C) ---[cite: 2]
 BOOL return_NO(id self, SEL _cmd) { return NO; }
 id return_nil(id self, SEL _cmd) { return nil; }
 long long return_1(id self, SEL _cmd) { return 1; }
 
-// Puntero para la función original de Swift
+// --- BYPASS SWIFT (Validación Facial) ---
 bool (*orig_nextTripRequiresLivenessChallenge)(void* self);
-
-// Función de reemplazo para el bypass facial
 bool hook_nextTripRequiresLivenessChallenge(void* self) {
-    return false; // Forzamos FALSE a nivel de registro de CPU
+    return false; // Forzamos retorno Falso en el registro x0 de la CPU
 }
 
-// ---------------------------------------------------------
-// 2. MOTOR DE INYECCIÓN UNIVERSAL
-// ---------------------------------------------------------
+// --- MOTOR DE INYECCIÓN (Constructor) ---[cite: 2]
 __attribute__((constructor)) static void apply_tribbu_bypass() {
     
-    // --- MÓDULO SWIFT: BYPASS FACIAL ---
-    // Buscamos en el ejecutable principal (NULL indica la imagen actual)
+    // 1. Bypass de Swift (Liveness) - Para iPhone 11-17
     MSImageRef image = MSGetImageByName(NULL);
     if (image) {
         void* symbol = MSFindSymbol(image, "_$s4Hoop11TripManagerC31nextTripRequiresLivenessChallengeSbvg");
@@ -32,7 +25,7 @@ __attribute__((constructor)) static void apply_tribbu_bypass() {
         }
     }
 
-    // --- MÓDULO GPS: ENMASCARAMIENTO ---[cite: 2]
+    // 2. Módulo GPS (Existente)[cite: 2]
     Class targetLocation = NSClassFromString(@"CLLocationSourceInformation");
     if (targetLocation) {
         Method m1 = class_getInstanceMethod(targetLocation, NSSelectorFromString(@"isSimulatedBySoftware"));
@@ -42,12 +35,9 @@ __attribute__((constructor)) static void apply_tribbu_bypass() {
         if (m2) method_setImplementation(m2, (IMP)return_NO);
     }
 
-    // --- MÓDULO RED: REACHABILITY ---[cite: 2]
+    // 3. Módulo Red (Existente)[cite: 2]
     Class targetReachability = NSClassFromString(@"Reachability");
     if (targetReachability) {
-        Method m3 = class_getClassMethod(targetReachability, NSSelectorFromString(@"reachabilityForLocalWiFi"));
-        if (m3) method_setImplementation(m3, (IMP)return_nil);
-
         Method m4 = class_getInstanceMethod(targetReachability, NSSelectorFromString(@"isReachableViaWiFi"));
         if (m4) method_setImplementation(m4, (IMP)return_NO);
 
