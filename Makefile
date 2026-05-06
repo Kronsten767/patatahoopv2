@@ -4,13 +4,9 @@ TARGET := iphone:clang:latest:15.0
 include $(THEOS)/makefiles/common.mk
 
 LIBRARY_NAME = TRIBBU
-# Asegúrate de que el archivo en tu repo se llame Tweak.xm
-TRIBBU_FILES = Tweak.xm
+# Volvemos a .m para usar Objective-C puro sin Cydia
+TRIBBU_FILES = Tweak.m
 TRIBBU_CFLAGS = -fobjc-arc
-TRIBBU_FRAMEWORKS = Foundation
-TRIBBU_LIBRARIES = substrate
+TRIBBU_FRAMEWORKS = Foundation UIKit
 
-# FIX CRÍTICO: Resuelve el error "Shared cache eligible dylib cannot link to ineligible dylib"
-TRIBBU_LDFLAGS = -Wl,-not_for_dyld_shared_cache
-
-include $(THEOS_MAKE_PATH)/library.mk
+include $(THEOS)/makefiles/library.mk
