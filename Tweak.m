@@ -2,66 +2,39 @@
 #import <objc/runtime.h>
 #import <UIKit/UIKit.h>
 
-// --- DECLARACIONES DE MOTOR DE INYECCIÓN ---[cite: 7]
-#ifdef __cplusplus
-extern "C" {
-#endif
-    void MSHookFunction(void *symbol, void *replace, void **result);
-    void *MSFindSymbol(void *image, const char *name);
-#ifdef __cplusplus
-}
-#endif
-
-// --- VECTORES DE RETORNO ---[cite: 2]
+// Vectores de retorno nativos para el Runtime[cite: 2]
 BOOL return_NO(id self, SEL _cmd) { return NO; }
 long long return_1(id self, SEL _cmd) { return 1; }
-id fake_UUID(id self, SEL _cmd) { return [[NSUUID alloc] initWithUUIDString:@"A1B2C3D4-E5F6-4789-90AB-CDEF12345678"]; }
+id fake_id(id self, SEL _cmd) { return [[NSUUID alloc] initWithUUIDString:@"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"]; }
 
-// --- HOOK SWIFT (FOTO) ---
-bool (*orig_liveness)(void* self);
-bool hook_liveness(void* self) {
-    return false; // El motor Swift recibe: "No hace falta foto"
-}
-
-// --- CONSTRUCTOR MAESTRO ---[cite: 2, 7, 9]
-__attribute__((constructor)) static void apply_hoop_v3_bypass() {
-
-    // 1. CAPA LÓGICA (Swift): Anula la necesidad de validación facial[cite: 6]
-    void* symbol = MSFindSymbol(NULL, "_$s4Hoop11TripManagerC31nextTripRequiresLivenessChallengeSbvg");
-    if (symbol) {
-        MSHookFunction(symbol, (void*)hook_liveness, (void**)&orig_liveness);
+__attribute__((constructor)) static void load_tribbu_bypass() {
+    
+    // 1. BYPASS CARA: Dismiss automático de la UI[cite: 1]
+    Class liveness = NSClassFromString(@"Hoop.LivenessViewController");
+    if (liveness) {
+        method_setImplementation(class_getInstanceMethod(liveness, @selector(viewDidAppear:)), 
+        imp_implementationWithBlock(^(id _self, BOOL animated) {
+            [(UIViewController *)_self dismissViewControllerAnimated:YES completion:nil];
+        }));
     }
 
-    // 2. CAPA UI (Objective-C): Cierre forzado si la cámara intenta abrirse
-    Class livenessVC = NSClassFromString(@"Hoop.LivenessViewController");
-    if (livenessVC) {
-        Method mDidAppear = class_getInstanceMethod(livenessVC, @selector(viewDidAppear:));
-        if (mDidAppear) {
-            method_setImplementation(mDidAppear, imp_implementationWithBlock(^(id _self, BOOL animated) {
-                [(UIViewController *)_self dismissViewControllerAnimated:YES completion:nil];
-            }));
-        }
+    // 2. BYPASS GPS: Ocultar simulación de software[cite: 2]
+    Class locInfo = NSClassFromString(@"CLLocationSourceInformation");
+    if (locInfo) {
+        method_setImplementation(class_getInstanceMethod(locInfo, NSSelectorFromString(@"isSimulatedBySoftware")), (IMP)return_NO);
+        method_setImplementation(class_getInstanceMethod(locInfo, NSSelectorFromString(@"isProducedByAccessory")), (IMP)return_NO);
     }
 
-    // 3. MÓDULO PRIVACIDAD Y HARDWARE (Spoofing)[cite: 2, 9]
-    // Cambia el ID del iPhone para evitar baneos de hardware
-    method_setImplementation(class_getInstanceMethod([UIDevice class], @selector(identifierForVendor)), (IMP)fake_UUID);
-    // Oculta si la pantalla está siendo grabada
-    method_setImplementation(class_getInstanceMethod([UIScreen class], @selector(isCaptured)), (IMP)return_NO);
-
-    // 4. MÓDULO GPS (Enmascaramiento de simulación)[cite: 2]
-    Class locSource = NSClassFromString(@"CLLocationSourceInformation");
-    if (locSource) {
-        method_setImplementation(class_getInstanceMethod(locSource, NSSelectorFromString(@"isSimulatedBySoftware")), (IMP)return_NO);
-        method_setImplementation(class_getInstanceMethod(locSource, NSSelectorFromString(@"isProducedByAccessory")), (IMP)return_NO);
-    }
-
-    // 5. MÓDULO RED Y ANTI-DETECCIÓN[cite: 2, 9]
-    // Engaña a 'Reachability' para reportar WiFi siempre activo
+    // 3. BYPASS RED: Reachability forzado[cite: 2]
     Class reach = NSClassFromString(@"Reachability");
     if (reach) {
         method_setImplementation(class_getInstanceMethod(reach, NSSelectorFromString(@"currentReachabilityStatus")), (IMP)return_1);
+        method_setImplementation(class_getInstanceMethod(reach, NSSelectorFromString(@"isReachableViaWiFi")), (IMP)return_NO);
     }
-    // Oculta archivos de Feather/Jailbreak ante NSFileManager
-    method_setImplementation(class_getInstanceMethod([NSFileManager class], @selector(fileExistsAtPath:)), (IMP)return_NO);
+
+    // 4. SPOOF HARDWARE ID: Identificador único falso
+    method_setImplementation(class_getInstanceMethod([UIDevice class], @selector(identifierForVendor)), (IMP)fake_id);
+
+    // 5. PRIVACIDAD: Bloqueo de detección de grabación
+    method_setImplementation(class_getInstanceMethod([UIScreen class], @selector(isCaptured)), (IMP)return_NO);
 }
