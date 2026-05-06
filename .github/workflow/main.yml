@@ -1,0 +1,31 @@
+name: CI
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Theos
+        run: |
+          brew install ldid
+          git clone --recursive https://github.com/theos/theos.git server_theos
+          curl -ksSL https://github.com/theos/sdks/archive/master.zip -o sdks.zip
+          unzip -q sdks.zip
+          mkdir -p server_theos/sdks
+          mv sdks-master/*.sdk server_theos/sdks/
+          rm -rf sdks-master sdks.zip
+
+      - name: Build Tweak
+        run: |
+          export THEOS=$GITHUB_WORKSPACE/server_theos
+          make
+        env:
+          THEOS: ${{ github.workspace }}/server_theos
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TRIBBU-dylib
+          path: .theos/obj/**/*.dylib
